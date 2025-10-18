@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 350px;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 10px 0;
+      color: #3EBFB5;
+    }
+    .section {
+      margin-bottom: 10px;
+      padding: 12px;
+      background: #ffffff;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+    }
+    .section h2 {
+      font-size: 14px;
+      margin: 0 0 8px 0;
+      color: #2c3e50;
+    }
+    button {
+      width: 100%;
+      padding: 8px;
+      margin: 4px 0;
+      border: none;
+      border-radius: 6px;
+      background: #3EBFB5;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #35a89f;
+    }
+    button:disabled {
+      background: #e4e6eb;
+      color: #bcc0c4;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+    .status.show {
+      display: block;
+    }
+    .status.info {
+      background: #d1f4f1;
+      color: #1a7a72;
+    }
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 15px;
+    }
+    .note {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 6px;
+    }
+    .page-status {
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .page-status.on-page {
+      background: #d1f4f1;
+      color: #1a7a72;
+    }
+    .page-status.not-on-page {
+      background: #fff3cd;
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+  <h1>Expunged</h1>
+  
+  <div class="section">
+    <h2>Step 1: Navigate to Activity Page</h2>
+    <button id="navigateComments">Go to Comments Page</button>
+    <button id="navigateReactions">Go to Reactions Page</button>
+    <div id="pageStatus" class="note" style="margin-top: 6px; display: none;"></div>
+  </div>
+
+  <div class="section">
+    <h2>Step 2: Delete Activities</h2>
+    <div style="margin-bottom: 8px;">
+      <label style="display: flex; align-items: center; font-size: 13px; cursor: pointer;">
+        <input type="checkbox" id="excludeOwnPosts" style="margin-right: 8px;">
+        <span>Don't delete comments on my own posts</span>
+      </label>
+    </div>
+    <button id="startDeletion">Start Deleting</button>
+    <div class="note">Make sure you're on the activity page before clicking this</div>
+  </div>
+
+  <div class="section" id="progressSection" style="display: none;">
+    <h2>Progress</h2>
+    <div style="font-size: 24px; font-weight: bold; color: #3EBFB5; text-align: center;" id="deleteCounter">0</div>
+    <div style="text-align: center; font-size: 12px; color: #6c757d; margin-top: 5px;">items deleted</div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
