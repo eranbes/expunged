@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Expunged",
-  "version": "1.0.0",
-  "description": "Clear your Facebook record - delete comments and reactions from your past",
+  "version": "1.1.0",
+  "description": "Clear your social media record - delete comments and reactions from Facebook and TikTok",
   "permissions": [
     "activeTab",
     "scripting",
@@ -10,7 +10,9 @@
   ],
   "host_permissions": [
     "https://www.facebook.com/*",
-    "https://facebook.com/*"
+    "https://facebook.com/*",
+    "https://www.tiktok.com/*",
+    "https://tiktok.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -24,5 +26,15 @@
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
-  }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.tiktok.com/*", "https://tiktok.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

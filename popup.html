@@ -3,134 +3,329 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      width: 350px;
-      padding: 15px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8f9fa;
+      width: 380px;
+      min-height: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: background 0.4s ease;
     }
+
+    /* Facebook theme */
+    body.theme-facebook {
+      background: linear-gradient(135deg, #1877f2 0%, #0c63d4 100%);
+    }
+
+    /* TikTok theme */
+    body.theme-tiktok {
+      background: linear-gradient(135deg, #000000 0%, #25f4ee 100%);
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
     h1 {
-      font-size: 18px;
-      margin: 0 0 10px 0;
-      color: #3EBFB5;
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
     }
-    .section {
-      margin-bottom: 10px;
-      padding: 12px;
-      background: #ffffff;
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
+
+    .subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
     }
-    .section h2 {
-      font-size: 14px;
-      margin: 0 0 8px 0;
-      color: #2c3e50;
+
+    /* Platform Selector */
+    .platform-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      padding: 6px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
     }
-    button {
-      width: 100%;
-      padding: 8px;
-      margin: 4px 0;
+
+    .platform-btn {
+      flex: 1;
+      padding: 10px 16px;
       border: none;
-      border-radius: 6px;
-      background: #3EBFB5;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .platform-btn:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .platform-btn.active {
+      background: white;
+      color: #1877f2;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    body.theme-facebook .platform-btn.active {
+      color: #1877f2;
+    }
+
+    body.theme-tiktok .platform-btn.active {
+      color: #000000;
+    }
+
+    /* Sections */
+    .section {
+      margin-bottom: 16px;
+      padding: 16px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .section h2 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+    }
+
+    /* Action Buttons */
+    button:not(.platform-btn) {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary-color, #667eea);
       color: white;
       font-weight: 600;
       cursor: pointer;
       font-size: 14px;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     }
-    button:hover {
-      background: #35a89f;
+
+    body.theme-facebook button:not(.platform-btn) {
+      background: #1877f2;
     }
+
+    body.theme-tiktok button:not(.platform-btn) {
+      background: linear-gradient(90deg, #25f4ee 0%, #fe2c55 100%);
+    }
+
+    button:not(.platform-btn):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    button:not(.platform-btn):active {
+      transform: translateY(0);
+    }
+
     button:disabled {
       background: #e4e6eb;
       color: #bcc0c4;
       cursor: not-allowed;
+      transform: none !important;
     }
+
+    /* Checkbox */
+    .checkbox-wrapper {
+      margin-bottom: 12px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .checkbox-wrapper label {
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      cursor: pointer;
+      color: #1a1a1a;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+      margin-right: 10px;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    /* Status Messages */
     .status {
-      margin-top: 10px;
-      padding: 8px;
-      border-radius: 6px;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
       font-size: 13px;
       display: none;
+      font-weight: 500;
     }
+
     .status.show {
       display: block;
     }
+
     .status.info {
-      background: #d1f4f1;
-      color: #1a7a72;
+      background: #e3f2fd;
+      color: #1565c0;
     }
+
     .status.success {
-      background: #d4edda;
-      color: #155724;
+      background: #e8f5e9;
+      color: #2e7d32;
     }
+
     .status.error {
-      background: #f8d7da;
-      color: #721c24;
+      background: #ffebee;
+      color: #c62828;
     }
-    .warning {
-      background: #fff3cd;
-      color: #856404;
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-bottom: 15px;
-    }
-    .note {
-      font-size: 11px;
-      color: #6c757d;
-      margin-top: 6px;
-    }
+
+    /* Page Status */
     .page-status {
-      padding: 6px;
+      padding: 8px 12px;
       border-radius: 6px;
       font-size: 12px;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 6px;
+      margin-top: 8px;
     }
+
     .page-status.on-page {
-      background: #d1f4f1;
-      color: #1a7a72;
+      background: #e8f5e9;
+      color: #2e7d32;
     }
+
     .page-status.not-on-page {
-      background: #fff3cd;
-      color: #856404;
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    /* Note text */
+    .note {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    /* Progress Section */
+    #progressSection {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    body.theme-facebook #progressSection {
+      background: linear-gradient(135deg, #1877f2 0%, #0c63d4 100%);
+    }
+
+    body.theme-tiktok #progressSection {
+      background: linear-gradient(135deg, #000000 0%, #25f4ee 100%);
+    }
+
+    #progressSection h2 {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    #deleteCounter {
+      font-size: 48px;
+      font-weight: 800;
+      color: white;
+      text-align: center;
+      margin: 16px 0;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .counter-label {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
   </style>
 </head>
-<body>
-  <h1>Expunged</h1>
-  
-  <div class="section">
-    <h2>Step 1: Navigate to Activity Page</h2>
-    <button id="navigateComments">Go to Comments Page</button>
-    <button id="navigateReactions">Go to Reactions Page</button>
-    <div id="pageStatus" class="note" style="margin-top: 6px; display: none;"></div>
-  </div>
-
-  <div class="section">
-    <h2>Step 2: Delete Activities</h2>
-    <div style="margin-bottom: 8px;">
-      <label style="display: flex; align-items: center; font-size: 13px; cursor: pointer;">
-        <input type="checkbox" id="excludeOwnPosts" style="margin-right: 8px;">
-        <span>Don't delete comments on my own posts</span>
-      </label>
+<body class="theme-facebook">
+  <div class="container">
+    <div class="header">
+      <h1>Expunged</h1>
+      <div class="subtitle">Social Media Activity Cleaner</div>
     </div>
-    <button id="startDeletion">Start Deleting</button>
-    <div class="note">Make sure you're on the activity page before clicking this</div>
+
+    <!-- Platform Selector -->
+    <div class="platform-selector">
+      <button id="platformFacebook" class="platform-btn active">Facebook</button>
+      <button id="platformTiktok" class="platform-btn">TikTok</button>
+    </div>
+
+    <!-- Step 1: Navigation -->
+    <div class="section">
+      <h2>Step 1: Navigate</h2>
+      <button id="navigateComments">Go to Comments Page</button>
+      <button id="navigateReactions">Go to Reactions Page</button>
+      <div id="pageStatus" style="display: none;"></div>
+    </div>
+
+    <!-- Step 2: Delete -->
+    <div class="section">
+      <h2>Step 2: Delete</h2>
+      <div class="checkbox-wrapper">
+        <label>
+          <input type="checkbox" id="excludeOwnPosts">
+          <span>Don't delete comments on my own posts</span>
+        </label>
+      </div>
+      <button id="startDeletion">Start Deleting</button>
+      <div class="note">Make sure you're on the activity page before clicking this</div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="section" id="progressSection" style="display: none;">
+      <h2>Progress</h2>
+      <div id="deleteCounter">0</div>
+      <div class="counter-label">Items Deleted</div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status" class="status"></div>
   </div>
 
-  <div class="section" id="progressSection" style="display: none;">
-    <h2>Progress</h2>
-    <div style="font-size: 24px; font-weight: bold; color: #3EBFB5; text-align: center;" id="deleteCounter">0</div>
-    <div style="text-align: center; font-size: 12px; color: #6c757d; margin-top: 5px;">items deleted</div>
-  </div>
+  <!-- Load platform modules first -->
+  <script src="platforms/facebook.js"></script>
+  <script src="platforms/tiktok.js"></script>
+  <script src="platforms/registry.js"></script>
 
-  <div id="status" class="status"></div>
-
+  <!-- Load main popup script -->
   <script src="popup.js"></script>
 </body>
 </html>

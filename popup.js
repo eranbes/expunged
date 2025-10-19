@@ -1,3 +1,14 @@
+/**
+ * Expunged Extension - Main Popup Script
+ * Uses modular platform architecture for multi-platform support
+ */
+
+let currentPlatform = 'facebook';
+
+// ============================================================================
+// UI Helper Functions
+// ============================================================================
+
 function showStatus(message, type) {
   const status = document.getElementById('status');
   status.textContent = message;
@@ -10,7 +21,6 @@ function showProgress() {
 
 function updateCounter(count) {
   document.getElementById('deleteCounter').textContent = count;
-  // Save counter to storage
   chrome.storage.local.set({ deleteCounter: count });
 }
 
@@ -25,122 +35,243 @@ function hidePageStatus() {
   document.getElementById('pageStatus').style.display = 'none';
 }
 
-// Restore state when popup opens
+// ============================================================================
+// Platform Management
+// ============================================================================
+
+function setPlatform(platformId) {
+  if (!PlatformRegistry.has(platformId)) {
+    console.error(`Platform ${platformId} not found`);
+    return;
+  }
+
+  currentPlatform = platformId;
+  chrome.storage.local.set({ currentPlatform: platformId });
+
+  // Update theme
+  document.body.className = `theme-${platformId}`;
+
+  // Update UI
+  document.querySelectorAll('.platform-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  const capitalizedId = platformId.charAt(0).toUpperCase() + platformId.slice(1);
+  const button = document.getElementById(`platform${capitalizedId}`);
+  if (button) {
+    button.classList.add('active');
+  }
+
+  // Re-check current page
+  checkCurrentPage();
+}
+
+function getCurrentPlatform() {
+  return PlatformRegistry.get(currentPlatform);
+}
+
+// ============================================================================
+// State Management
+// ============================================================================
+
 async function restoreState() {
-  const { deleteCounter, isDeleting, deleteType, excludeOwnPosts } = await chrome.storage.local.get([
-    'deleteCounter', 
-    'isDeleting', 
+  const {
+    deleteCounter,
+    isDeleting,
+    deleteType,
+    excludeOwnPosts,
+    currentPlatform: savedPlatform
+  } = await chrome.storage.local.get([
+    'deleteCounter',
+    'isDeleting',
     'deleteType',
-    'excludeOwnPosts'
+    'excludeOwnPosts',
+    'currentPlatform'
   ]);
-  
+
+  // Restore platform selection
+  if (savedPlatform && PlatformRegistry.has(savedPlatform)) {
+    setPlatform(savedPlatform);
+  }
+
   // Restore counter if deletion is in progress
   if (isDeleting && deleteCounter !== undefined) {
     showProgress();
     updateCounter(deleteCounter);
     showStatus(`Deleting items... Keep tab open!`, 'info');
   }
-  
+
   // Restore checkbox state
   if (excludeOwnPosts !== undefined) {
     document.getElementById('excludeOwnPosts').checked = excludeOwnPosts;
   }
 }
 
-// Check current page when popup opens
+// ============================================================================
+// Page Detection
+// ============================================================================
+
 async function checkCurrentPage() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
+
   if (!tab.url) return;
-  
-  if (tab.url.includes('facebook.com') && tab.url.includes('allactivity')) {
-    if (tab.url.includes('COMMENTSCLUSTER')) {
-      showPageStatus('✓ You are on the Comments page', true);
-    } else if (tab.url.includes('LIKEDPOSTS')) {
-      showPageStatus('✓ You are on the Reactions page', true);
-    } else {
-      showPageStatus('✓ You are on an activity page', true);
-    }
-  } else if (tab.url.includes('facebook.com')) {
+
+  const platform = getCurrentPlatform();
+  if (!platform) return;
+
+  const detection = platform.getPageDetection();
+
+  if (detection.comments(tab.url)) {
+    showPageStatus(`✓ You are on the ${platform.name} Comments page`, true);
+  } else if (detection.reactions(tab.url)) {
+    showPageStatus(`✓ You are on the ${platform.name} Reactions page`, true);
+  } else if (detection.anyActivity(tab.url)) {
+    showPageStatus(`✓ You are on a ${platform.name} activity page`, true);
+  } else if (detection.onSite(tab.url)) {
     showPageStatus('Navigate to an activity page using Step 1', false);
   } else {
-    showPageStatus('Not on Facebook - click a button in Step 1', false);
+    showPageStatus(`Not on ${platform.name} - click a button in Step 1`, false);
   }
 }
 
-// Run checks when popup opens
-restoreState();
-checkCurrentPage();
+// ============================================================================
+// Navigation
+// ============================================================================
 
-document.getElementById('navigateComments').addEventListener('click', async () => {
-  hidePageStatus();
-  await navigateToActivityPage('comments');
-});
-
-document.getElementById('navigateReactions').addEventListener('click', async () => {
-  hidePageStatus();
-  await navigateToActivityPage('reactions');
-});
-
-document.getElementById('startDeletion').addEventListener('click', async () => {
+async function navigateToActivityPage(type) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  // Check if we're on a Facebook activity page (either /me/ or /{user_id}/)
-  if (!tab.url || !tab.url.includes('facebook.com') || !tab.url.includes('allactivity')) {
+  const platform = getCurrentPlatform();
+
+  if (!platform) {
+    showStatus('Platform not found', 'error');
+    return;
+  }
+
+  // Check if platform requires manual navigation
+  if (platform.requiresManualNavigation()) {
+    const instructions = platform.getManualNavigationInstructions(type);
+    showStatus(instructions, 'info');
+    showPageStatus(`Open ${platform.name} and go to your profile to see your ${type}`, false);
+    return;
+  }
+
+  // Auto-navigate for platforms that support it
+  const urls = platform.getUrls();
+  const activityUrl = urls[type];
+
+  if (!activityUrl) {
+    showStatus(`${type} page not configured for ${platform.name}`, 'error');
+    return;
+  }
+
+  showStatus(`Navigating to ${platform.name}...`, 'info');
+  await chrome.tabs.update(tab.id, { url: activityUrl });
+
+  // Save the selected type to storage so we know what the user wants to delete
+  await chrome.storage.local.set({ selectedType: type });
+
+  setTimeout(() => {
+    showStatus(`Ready! Now click "Start Deleting" in Step 2`, 'success');
+    if (platform.id === 'tiktok') {
+      showPageStatus(`✓ On TikTok Explore - ready to delete ${type}`, true);
+    } else {
+      showPageStatus(`✓ You are on the ${type === 'comments' ? 'Comments' : 'Reactions'} page`, true);
+    }
+  }, 3000);
+}
+
+// ============================================================================
+// Deletion Process
+// ============================================================================
+
+async function startDeletion() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const platform = getCurrentPlatform();
+
+  if (!platform) {
+    showStatus('Platform not found', 'error');
+    return;
+  }
+
+  const detection = platform.getPageDetection();
+
+  // Check if we're on the correct platform's activity page
+  if (!tab.url || !detection.anyActivity(tab.url)) {
     showStatus('Please navigate to the activity page first using Step 1!', 'error');
     return;
   }
-  
+
   const excludeOwnPosts = document.getElementById('excludeOwnPosts').checked;
-  
-  // Determine type from URL
-  let type = 'comments';
-  if (tab.url.includes('LIKEDPOSTS')) {
-    type = 'reactions';
-  }
-  
+
+  // Get the type that the user selected (stored when they clicked "Go to ... Page")
+  const storage = await chrome.storage.local.get(['selectedType']);
+  let type = storage.selectedType || 'comments'; // Default to comments if not set
+
+  console.log('Using selected type from storage:', type);
+
   // Save state
   await chrome.storage.local.set({
     isDeleting: true,
     deleteType: type,
     excludeOwnPosts: excludeOwnPosts,
-    deleteCounter: 0
+    deleteCounter: 0,
+    deletePlatform: currentPlatform
   });
-  
+
   showStatus(`Deleting items... Keep tab open!`, 'info');
   showProgress();
   updateCounter(0);
-  
-  await executeCleanup(type, tab.id, excludeOwnPosts);
-});
 
-async function navigateToActivityPage(type) {
-  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  let activityUrl;
-  if (type === 'comments') {
-    activityUrl = 'https://www.facebook.com/me/allactivity?activity_history=false&category_key=COMMENTSCLUSTER';
-  } else {
-    activityUrl = 'https://www.facebook.com/me/allactivity?activity_history=false&category_key=LIKEDPOSTS';
-  }
-  
-  showStatus(`Navigating to ${type} page...`, 'info');
-  await chrome.tabs.update(tab.id, { url: activityUrl });
-  
-  setTimeout(() => {
-    showStatus(`Ready! Now click "Start Deleting" in Step 2`, 'success');
-    showPageStatus(`✓ You are on the ${type === 'comments' ? 'Comments' : 'Reactions'} page`, true);
-  }, 3000);
+  await executeCleanup(type, tab.id, excludeOwnPosts, platform);
 }
 
-async function executeCleanup(type, tabId, excludeOwnPosts) {
+async function executeCleanup(type, tabId, excludeOwnPosts, platform) {
+  console.log('executeCleanup called with:', { platformId: platform.id, type, tabId });
+
   try {
-    await chrome.scripting.executeScript({
+    // Special handling for TikTok comments - uses background script orchestration
+    if (platform.id === 'tiktok' && type === 'comments') {
+      console.log('✅ Using background script orchestration for TikTok comments');
+
+      chrome.runtime.sendMessage({
+        action: 'startTikTokCommentDeletion',
+        tabId: tabId
+      }, (response) => {
+        if (response && response.started) {
+          console.log('✅ Background orchestration started');
+        } else {
+          console.error('❌ Failed to start background orchestration');
+          showStatus('Error: Could not start comment deletion', 'error');
+        }
+      });
+
+      // Set up message listener for counter updates from background script
+      chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        if (message.type === 'updateCounter') {
+          updateCounter(message.count);
+        } else if (message.type === 'finished') {
+          updateCounter(message.count);
+          showStatus(`Completed! Deleted ${message.count} comments.`, 'success');
+          chrome.storage.local.set({ isDeleting: false });
+        }
+      });
+
+      return;
+    }
+
+    // Regular approach for everything else (including TikTok reactions)
+    const cleanupFunc = platform.getCleanupFunction();
+
+    console.log('Injecting cleanup script for', platform.name, 'type:', type);
+
+    const result = await chrome.scripting.executeScript({
       target: { tabId: tabId },
-      func: cleanupActivities,
+      func: cleanupFunc,
       args: [type, excludeOwnPosts]
     });
-    
+
+    console.log('Script injection result:', result);
+
     // Set up message listener for counter updates
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'updateCounter') {
@@ -153,234 +284,48 @@ async function executeCleanup(type, tabId, excludeOwnPosts) {
       }
     });
   } catch (error) {
+    console.error('Script injection error:', error);
     showStatus(`Error: ${error.message}`, 'error');
     // Clear deletion state on error
     chrome.storage.local.set({ isDeleting: false });
   }
 }
 
-// This function runs in the Facebook page context
-function cleanupActivities(type, excludeOwnPosts) {
-  let deletedCount = 0;
-  let noChangeCount = 0;
-  const maxNoChangeAttempts = 5;
-  window.stopDeleting = false;
+// ============================================================================
+// Event Listeners
+// ============================================================================
 
-  // Helper function to wait
-  const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-  // Helper to scroll down
-  function scrollDown() {
-    window.scrollTo(0, document.body.scrollHeight);
-  }
-
-  // Send update to popup
-  function updatePopup(count, finished = false) {
-    try {
-      chrome.runtime.sendMessage({
-        type: finished ? 'finished' : 'updateCounter',
-        count: count
-      });
-    } catch (e) {
-      // Silently fail if popup is closed
+function setupEventListeners() {
+  // Platform switcher buttons
+  const platformIds = PlatformRegistry.getAllIds();
+  platformIds.forEach(platformId => {
+    const capitalizedId = platformId.charAt(0).toUpperCase() + platformId.slice(1);
+    const button = document.getElementById(`platform${capitalizedId}`);
+    if (button) {
+      button.addEventListener('click', () => setPlatform(platformId));
     }
-  }
-
-  // Check if a comment is on own post
-  function isCommentOnOwnPost(button) {
-    if (!excludeOwnPosts) {
-      return false;
-    }
-
-    // Look for context that indicates this is own post
-    const container = button.closest('[role="article"]') || button.closest('div[data-ad-preview]') || button.closest('li');
-    if (!container) return false;
-
-    const text = container.textContent.toLowerCase();
-    
-    // Look for indicators that this is a comment on own post
-    // Facebook shows "You commented on your post" or similar text
-    if (text.includes('you commented on your') || 
-        text.includes('your post') && text.includes('comment')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  // Find activity items (not messenger or other menus)
-  function findActivityItems() {
-    const allButtons = Array.from(document.querySelectorAll('[role="button"]'));
-    
-    // Filter to find buttons that are part of activity entries
-    const activityButtons = allButtons.filter(btn => {
-      const ariaLabel = btn.getAttribute('aria-label') || '';
-      
-      // Must have "More options" in aria-label
-      if (!ariaLabel.toLowerCase().includes('more options')) {
-        return false;
-      }
-      
-      // Should NOT be part of messenger
-      const parent = btn.closest('div[role="main"]') || btn.closest('[data-pagelet]');
-      if (parent) {
-        const parentText = parent.textContent.toLowerCase();
-        // Exclude if it's clearly a messenger item
-        if (parentText.includes('delete chat') || parentText.includes('archive chat')) {
-          return false;
-        }
-        // Include if it contains activity keywords
-        if (parentText.includes('reacted') || 
-            parentText.includes('liked') || 
-            parentText.includes('commented') ||
-            parentText.includes('shared')) {
-          return true;
-        }
-      }
-      
-      return false;
-    });
-    
-    return activityButtons;
-  }
-
-  // Find delete/unlike option in the opened menu
-  function findDeleteOption() {
-    const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'));
-    
-    for (const item of menuItems) {
-      const text = item.textContent.toLowerCase();
-      if (text.includes('unlike') ||
-          text.includes('delete') || 
-          text.includes('remove') || 
-          text.includes('move to trash') ||
-          text.includes('move to bin')) {
-        // Make sure it's not "Delete chat" or "Archive chat"
-        if (!text.includes('chat')) {
-          return item;
-        }
-      }
-    }
-    return null;
-  }
-
-  // Find confirm button in modal
-  function findConfirmButton() {
-    const buttons = Array.from(document.querySelectorAll('[role="button"]'));
-    for (const btn of buttons) {
-      const text = btn.textContent.trim().toLowerCase();
-      if ((text === 'delete' || 
-           text === 'confirm' || 
-           text === 'remove' ||
-           text === 'move to trash' ||
-           text === 'move to bin') &&
-          !text.includes('chat')) {
-        return btn;
-      }
-    }
-    return null;
-  }
-
-  // Close any open menus by pressing Escape
-  function closeMenus() {
-    document.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Escape',
-      code: 'Escape',
-      keyCode: 27,
-      which: 27,
-      bubbles: true
-    }));
-  }
-
-  // Main deletion process
-  async function deleteNext() {
-    if (window.stopDeleting) {
-      alert('Deletion stopped. Refresh the page to see results.');
-      return false;
-    }
-
-    // Find activity item menu buttons
-    const activityButtons = findActivityItems();
-
-    if (activityButtons.length === 0) {
-      // Scroll and try again
-      scrollDown();
-      await wait(3000);
-      
-      const newButtons = findActivityItems();
-      if (newButtons.length === 0) {
-        noChangeCount++;
-        
-        if (noChangeCount >= maxNoChangeAttempts) {
-          updatePopup(deletedCount, true);
-          alert(`Completed! Deleted ${deletedCount} ${type}. Refresh the page to see results.`);
-          return false;
-        }
-      } else {
-        noChangeCount = 0;
-      }
-      return true;
-    }
-
-    noChangeCount = 0;
-
-    // Check if we should skip this item (comment on own post)
-    if (isCommentOnOwnPost(activityButtons[0])) {
-      // Skip this item - close any open menus and continue
-      closeMenus();
-      await wait(500);
-      return true;
-    }
-
-    // Click the first activity menu button
-    activityButtons[0].click();
-    await wait(1500);
-
-    // Find and click delete/unlike option
-    const deleteOption = findDeleteOption();
-    if (!deleteOption) {
-      closeMenus();
-      await wait(500);
-      return true;
-    }
-
-    deleteOption.click();
-    await wait(1500);
-
-    // Check if there's a confirmation needed
-    const confirmButton = findConfirmButton();
-    if (confirmButton) {
-      confirmButton.click();
-      await wait(2000); // Wait for deletion to actually complete
-    } else {
-      await wait(1500); // Wait for deletion without confirmation
-    }
-    
-    deletedCount++;
-    updatePopup(deletedCount);
-    
-    // Close any remaining menus
-    closeMenus();
-    await wait(500);
-    
-    return true;
-  }
-
-  // Main loop
-  async function deleteLoop() {
-    while (true) {
-      const shouldContinue = await deleteNext();
-      if (!shouldContinue) {
-        break;
-      }
-      
-      // Add a delay between deletions to avoid rate limiting
-      await wait(1500);
-    }
-  }
-
-  // Start the process
-  deleteLoop().catch(err => {
-    alert(`Error occurred: ${err.message}`);
   });
+
+  // Navigation buttons
+  document.getElementById('navigateComments').addEventListener('click', async () => {
+    hidePageStatus();
+    await navigateToActivityPage('comments');
+  });
+
+  document.getElementById('navigateReactions').addEventListener('click', async () => {
+    hidePageStatus();
+    await navigateToActivityPage('reactions');
+  });
+
+  // Start deletion button
+  document.getElementById('startDeletion').addEventListener('click', startDeletion);
 }
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+// Initialize when popup opens
+restoreState();
+checkCurrentPage();
+setupEventListeners();
